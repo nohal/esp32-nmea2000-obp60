@@ -162,6 +162,19 @@
 #define GWBUTTON_PULLUPDOWN 
 #endif
 
+#ifdef BOARD_NODEMCU
+#define ESP32_CAN_TX_PIN GPIO_NUM_16
+#define ESP32_CAN_RX_PIN GPIO_NUM_4
+//serial input only
+#define GWSERIAL_RX GPIO_NUM_5
+#define GWSERIAL_TYPE GWSERIAL_TYPE_RX
+
+#define GWBUTTON_PIN GPIO_NUM_0
+#define GWBUTTON_ACTIVE LOW
+//if GWBUTTON_PULLUPDOWN we enable a pulup/pulldown
+#define GWBUTTON_PULLUPDOWN 
+#endif
+
 #include "GwM5Base.h"
 #include "GwM5Grove.h"
 

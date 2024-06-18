@@ -71,6 +71,7 @@ void GwChannel::begin(
     String readFilter,
     String writeFilter,
     bool seaSmartOut,
+    bool N2KRawOut,
     bool toN2k,
     bool readActisense,
     bool writeActisense)
@@ -85,6 +86,7 @@ void GwChannel::begin(
         NULL:
         new GwNmeaFilter(writeFilter);
     this->seaSmartOut=seaSmartOut;
+    this->N2KRawOut=N2KRawOut;
     this->toN2k=toN2k;
     this->readActisense=readActisense;
     this->writeActisense=writeActisense;
@@ -142,11 +144,13 @@ void GwChannel::updateCounter(const char *msg, bool out)
     }
 }
 
-bool GwChannel::canSendOut(const char *buffer, bool isSeasmart){
+bool GwChannel::canSendOut(const char *buffer, bool isSeasmart, bool isN2KRaw){
     if (! enabled || ! impl) return false;
     if (readActisense) return false;
-    if (! isSeasmart && ! NMEAout) return false;
+    if (! isSeasmart && ! NMEAout && ! N2KRawOut) return false;
     if (isSeasmart && ! seaSmartOut) return false;
+    if (isN2KRaw && ! N2KRawOut) return false;
+    if (! isN2KRaw && N2KRawOut) return false; // We don't mix NMEA0183 (And SeaSmart, which abuses the same data protocol) and N2K raw data
     if (writeFilter && ! writeFilter->canPass(buffer)) return false;
     return true;
 }
@@ -181,6 +185,7 @@ String GwChannel::toString(){
     rt+=String("WF:") + (writeFilter?writeFilter->toString():"[]");
     rt+=String(",")+ (toN2k?"n2k":"");
     rt+=String(",")+ (seaSmartOut?"SM":"");
+    rt+=String(",")+ (N2KRawOut?"NR":"");
     rt+=String(",")+(readActisense?"AR":"");
     rt+=String(",")+(writeActisense?"AW":"");
     return rt;
@@ -196,9 +201,9 @@ void GwChannel::readMessages(GwChannel::NMEA0183Handler handler){
     receiver->setHandler(handler);
     impl->readMessages(receiver);
 }
-void GwChannel::sendToClients(const char *buffer, int sourceId, bool isSeasmart){
+void GwChannel::sendToClients(const char *buffer, int sourceId, bool isSeasmart,bool isN2KRaw){
     if (! impl) return;
-    if (canSendOut(buffer,isSeasmart)){
+    if (canSendOut(buffer,isSeasmart,isN2KRaw)){
         if(impl->sendToClients(buffer,sourceId)){
             updateCounter(buffer,true);
         }

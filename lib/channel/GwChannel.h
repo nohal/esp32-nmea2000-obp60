@@ -17,6 +17,7 @@ class GwChannel{
     GwNmeaFilter* readFilter=NULL;
     GwNmeaFilter* writeFilter=NULL;
     bool seaSmartOut=false;
+    bool N2KRawOut=false;
     bool toN2k=false;
     bool readActisense=false;
     bool writeActisense=false;
@@ -44,6 +45,7 @@ class GwChannel{
         String readFilter,
         String writeFilter,
         bool seaSmartOut,
+        bool N2KRawOut,
         bool toN2k,
         bool readActisense=false,
         bool writeActisense=false
@@ -56,9 +58,10 @@ class GwChannel{
     }
     bool isEnabled(){return enabled;}
     bool shouldRead(){return enabled && NMEAin;}
-    bool canSendOut(const char *buffer, bool isSeasmart);
+    bool canSendOut(const char *buffer, bool isSeasmart, bool isN2KRaw);
     bool canReceive(const char *buffer);
     bool sendSeaSmart(){ return seaSmartOut;}
+    bool sendN2KRaw(){ return N2KRawOut;}
     bool sendToN2K(){return toN2k;}
     int getJsonSize();
     void toJson(GwJsonDocument &doc);
@@ -67,7 +70,7 @@ class GwChannel{
     void loop(bool handleRead, bool handleWrite);
     typedef std::function<void(const char *buffer, int sourceid)> NMEA0183Handler;
     void readMessages(NMEA0183Handler handler);
-    void sendToClients(const char *buffer, int sourceId, bool isSeasmart=false);
+    void sendToClients(const char *buffer, int sourceId, bool isSeasmart=false, bool isN2KRaw=false);
     typedef std::function<void(const tN2kMsg &msg, int sourceId)> N2kHandler ;
     void parseActisense(N2kHandler handler);
     void sendActisense(const tN2kMsg &msg, int sourceId);

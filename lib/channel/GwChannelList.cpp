@@ -334,6 +334,7 @@ void GwChannelList::begin(bool fallbackSerial){
         config->getString(config->tcpReadFilter),
         config->getString(config->tcpWriteFilter),
         config->getBool(config->sendSeasmart),
+        config->getBool(config->sendN2KRaw),
         config->getBool(config->tcpToN2k),
         false,
         false
@@ -393,6 +394,7 @@ void GwChannelList::begin(bool fallbackSerial){
         config->getString(config->tclReadFilter),
         config->getString(config->tclReadFilter),
         config->getBool(config->tclSeasmart),
+        config->getBool(config->tclN2KRaw),
         config->getBool(config->tclToN2k),
         false,
         false

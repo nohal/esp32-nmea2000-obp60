@@ -649,6 +649,14 @@
         "category": "TCP server"
     },
     {
+        "name": "sendN2KRaw",
+        "label": "N2K Raw out",
+        "type": "boolean",
+        "default": "false",
+        "description": "send NMEA2000 in ActiSense/YD RAW Ascii format to connected TCP clients",
+        "category": "TCP server"
+    },
+    {
         "name": "tclEnabled",
         "label": "enable",
         "type": "boolean",
@@ -719,6 +727,14 @@
         "type": "boolean",
         "default": "false",
         "description": "send NMEA2000 as seasmart to remote TCP server",
+        "category": "TCP client"
+    },
+    {
+        "name": "tclN2KRaw",
+        "label": "N2K Raw out",
+        "type": "boolean",
+        "default": "false",
+        "description": "send NMEA2000 in ActiSense/YD RAW Ascii format to remote TCP server",
         "category": "TCP client"
     },
     {
