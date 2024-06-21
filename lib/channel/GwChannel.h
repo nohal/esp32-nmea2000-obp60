@@ -81,7 +81,7 @@ class GwChannel{
     void loop(bool handleRead, bool handleWrite);
     typedef std::function<void(const char *buffer, int sourceid)> NMEA0183Handler;
     void readMessages(NMEA0183Handler handler);
-    void sendToClients(const char *buffer, int sourceId, bool isSeasmart=false, bool isN2KRaw=false);
+    void sendToClients(const char *buffer, size_t len, int sourceId, bool isSeasmart=false, bool isN2KRaw=false);
     typedef std::function<void(const tN2kMsg &msg, int sourceId)> N2kHandler ;
     void parseActisense(N2kHandler handler);
     void sendActisense(const tN2kMsg &msg, int sourceId);

@@ -23,7 +23,7 @@ class GwSerial : public GwChannelInterface{
         GwSerial(GwLog *logger,Stream *stream,int id,bool allowRead=true);
         ~GwSerial();
         bool isInitialized();
-        virtual size_t sendToClients(const char *buf,int sourceId,bool partial=false);
+        virtual size_t sendToClients(const char *buf,size_t len,int sourceId,bool partial=false);
         virtual void loop(bool handleRead=true,bool handleWrite=true);
         virtual void readMessages(GwMessageFetcher *writer);
         bool flush(long millis=200);

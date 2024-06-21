@@ -79,9 +79,8 @@ GwBuffer::WriteStatus GwSerial::write(){
     }
     return buffer->usedSpace()?GwBuffer::AGAIN:GwBuffer::OK;
 }
-size_t GwSerial::sendToClients(const char *buf,int sourceId,bool partial){
+size_t GwSerial::sendToClients(const char *buf,size_t len,int sourceId,bool partial){
     if ( sourceId == id) return 0;
-    size_t len=strlen(buf);
     size_t enqueued=enqueue((const uint8_t*)buf,len,partial);
     if (enqueued != len && ! partial){
         LOG_DEBUG(GwLog::DEBUG,"GwSerial overflow on channel %d",id);

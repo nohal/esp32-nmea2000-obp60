@@ -203,10 +203,10 @@ void GwChannel::readMessages(GwChannel::NMEA0183Handler handler){
     receiver->setHandler(handler);
     impl->readMessages(receiver);
 }
-void GwChannel::sendToClients(const char *buffer, int sourceId, bool isSeasmart,bool isN2KRaw){
+void GwChannel::sendToClients(const char *buffer, size_t len, int sourceId, bool isSeasmart,bool isN2KRaw){
     if (! impl) return;
     if (canSendOut(buffer,isSeasmart,isN2KRaw)){
-        if(impl->sendToClients(buffer,sourceId)){
+        if(impl->sendToClients(buffer,len,sourceId)){
             updateCounter(buffer,true);
         }
     }

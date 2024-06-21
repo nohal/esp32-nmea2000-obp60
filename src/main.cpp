@@ -221,10 +221,9 @@ void sendN2kAsciiRaw(GwChannel *c, const tN2kMsg &n2kMsg, int sourceId,
     len++;
     buf[len] = 0x0a;
     len++;
-    buf[len] = 0;
     // logger.logDebug(GwLog::DEBUG, "N2K simple: %s, %d, %u", buf, len,
     // n2kMsg.PGN);
-    c->sendToClients(buf, sourceId, false, true);
+    c->sendToClients(buf, len, sourceId, false, true);
   } else {
     order += 16;
     int frames = n2kMsg.DataLen > 6 ? (n2kMsg.DataLen - 6 - 1) / 7 + 1 + 1 : 1;
@@ -263,10 +262,9 @@ void sendN2kAsciiRaw(GwChannel *c, const tN2kMsg &n2kMsg, int sourceId,
       len++;
       buf[len] = 0x0a;
       len++;
-      buf[len] = 0;
       // logger.logDebug(GwLog::DEBUG, "N2K complex: %s, %d, %u", buf, len,
       // n2kMsg.PGN);
-      c->sendToClients(buf, sourceId, false, true);
+      c->sendToClients(buf, len, sourceId, false, true);
     }
   }
 }
@@ -294,10 +292,9 @@ A000549.747 04FF6 1FA03 F0FBFFFFFFFFFFFF\r\n
   len++;
   buf[len] = 0x0a;
   len++;
-  buf[len] = 0;
   // logger.logDebug(GwLog::DEBUG, "N2K complex: %s, %d, %u", buf, len,
   // n2kMsg.PGN);
-  c->sendToClients(buf, sourceId, false, true);
+  c->sendToClients(buf, len, sourceId, false, true);
 }
 
 void sendN2kRaw(GwChannel *c, const tN2kMsg &n2kMsg, int sourceId, char *buf) {
@@ -316,7 +313,7 @@ void sendN2kRaw(GwChannel *c, const tN2kMsg &n2kMsg, int sourceId, char *buf) {
 1002 950ef435 0404fa19 23 9cff00000000f06b 1003
 1002 950ef435 0404fa19 24 0ddc26dc269cff49 1003
 */
-//TODO - needs to implement sendToClients for binary data
+//TODO
 }
 
 void sendN2k(GwChannel *c, const tN2kMsg &n2kMsg, int sourceId, char *buf) {
@@ -326,14 +323,21 @@ void sendN2k(GwChannel *c, const tN2kMsg &n2kMsg, int sourceId, char *buf) {
   1002d01500ff0401f8090 0cc36010007 74eb14829052d2631003
   1002d08800ff0404fa19c1e3330100c8fd0a05ff1d22249cffbafffffff00bc50438559cff00000000f00d7f257f259cff00000000f00fa13ab7899cffeb71b4e1f012ad1e2ada9cff00000000f014970b2d359cffb0fffffff0170b11e5be9cffffffff7ff018f40c156d9cff00000000f01db92065999cff00000000f01e7405ff1d9cff5f010000f0f11003
   */
-  //TODO - needs to implement sendToClients for binary data
+  //TODO
 }
 
 void sendN2kNGT1(GwChannel *c, const tN2kMsg &n2kMsg, int sourceId, char *buf) {
   /*
-  100293860604fa01ff04155a01007b5ffd0a05501dd0249cffbafffffff00b170438559cff00000000f00dd024d0249cff00000000f00ffe3b5a889cffeb71b4e1f0125c1f2ada9cff00000000f014e80adc359cffb0fffffff017b91142c09cffffffff7ff018a20d666c9cff00000000f01d0b2008989cff00000000f01ec504501d9cff5f010000f0571003
+  100293 86 06 04fa01 ff 04 155a0100 7b 5ffd0a05501dd0249cffbafffffff00b170438559cff00000000f00dd024d0249cff00000000f00ffe3b5a889cffeb71b4e1f0125c1f2ada9cff00000000f014e80adc359cffb0fffffff017b91142c09cffffffff7ff018a20d666c9cff00000000f01d0b2008989cff00000000f01ec504501d9cff5f010000f0 57 1003
+     * <10><02><93><length (1)><priority (1)><PGN (3)><destination (1)><source (1)><time (4)><len (1)><data (len)><CRC (1)><10><03>
+     * or
+     * <10><02><94><length (1)><priority (1)><PGN (3)><destination (1)><len (1)><data (len)><CRC (1)><10><03>
+     #define MsgTypeN2kData 0x93
+     #define MsgTypeN2kRequest 0x94
+     if MsgTypeN2kRequest, source = DefaultSource = 65
+
   */
-  //TODO - needs to implement sendToClients for binary data
+  //TODO
 }
 
 void handleN2kMessage(const tN2kMsg &n2kMsg,int sourceId, bool isConverted=false)
@@ -346,21 +350,20 @@ void handleN2kMessage(const tN2kMsg &n2kMsg,int sourceId, bool isConverted=false
   char *buf=new char[MAX_NMEA2000_MESSAGE_SEASMART_SIZE+3];
   std::unique_ptr<char> bufDel(buf);
   bool messageCreated=false;
+  size_t len=0;
   channels.allChannels([&](GwChannel *c){
     if (c->sendSeaSmart()){
       if (! messageCreated){
-        size_t len;
         if ((len=N2kToSeasmart(n2kMsg, millis(), buf, MAX_NMEA2000_MESSAGE_SEASMART_SIZE)) != 0) {
           buf[len]=0x0d;
           len++;
           buf[len]=0x0a;
           len++;
-          buf[len]=0;
           messageCreated=true;
         }
       }
       if (messageCreated){
-        c->sendToClients(buf,sourceId,true);
+        c->sendToClients(buf,len,sourceId,true);
       }
     }
    
@@ -417,10 +420,11 @@ void SendNMEA0183Message(const tNMEA0183Msg &NMEA0183Msg, int sourceId,bool conv
   }
   size_t len=strlen(buf);
   buf[len]=0x0d;
-  buf[len+1]=0x0a;
-  buf[len+2]=0;
+  len++;
+  buf[len]=0x0a;
+  len++;
   channels.allChannels([&](GwChannel *c){
-    c->sendToClients(buf,sourceId,false);
+    c->sendToClients(buf,len,sourceId,false);
   });
 }
 
@@ -1189,11 +1193,12 @@ void loopRun() {
   channels.allChannels([](GwChannel *c){
     c->readMessages([&](const char * buffer, int sourceId){
       bool isSeasmart=false;
-      if (strlen(buffer) > 6 && strncmp(buffer,"$PCDIN",6) == 0){
+      size_t len=strlen(buffer); 
+      if (len > 6 && strncmp(buffer,"$PCDIN",6) == 0){
         isSeasmart=true;
       }
       channels.allChannels([&](GwChannel *oc){
-        oc->sendToClients(buffer,sourceId,isSeasmart);
+        oc->sendToClients(buffer,len,sourceId,isSeasmart);
         oc->loop(false,true);
       });
       if (c->sendToN2K()){

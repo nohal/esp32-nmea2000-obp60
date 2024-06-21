@@ -227,11 +227,10 @@ void GwTcpClient::loop(bool handleRead,bool handleWrite)
     }
 }
 
-size_t GwTcpClient::sendToClients(const char *buf,int sourceId, bool partialWrite){
+size_t GwTcpClient::sendToClients(const char *buf, size_t len, int sourceId, bool partialWrite){
     if (sourceId == this->sourceId) return 0;
     if (state != C_CONNECTED) return 0;
     if (! connection->hasClient()) return 0;
-    size_t len=strlen(buf);
     if (connection->enqueue((uint8_t*)buf,len)){
         return len;
     }

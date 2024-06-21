@@ -24,7 +24,7 @@ class GwSocketServer: public GwChannelInterface{
         ~GwSocketServer();
         void begin();
         virtual void loop(bool handleRead=true,bool handleWrite=true);
-        virtual size_t sendToClients(const char *buf,int sourceId, bool partialWrite=false);
+        virtual size_t sendToClients(const char *buf, size_t len, int sourceId, bool partialWrite=false);
         int numClients();
         virtual void readMessages(GwMessageFetcher *writer);
 };

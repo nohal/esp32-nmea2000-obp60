@@ -149,12 +149,11 @@ void GwSocketServer::readMessages(GwMessageFetcher *writer)
     }
     return;
 }
-size_t GwSocketServer::sendToClients(const char *buf, int source,bool partial)
+size_t GwSocketServer::sendToClients(const char *buf, size_t len, int source,bool partial)
 {
     if (!clients)
         return 0;
     bool hasSend=false;    
-    int len = strlen(buf);
     int sourceIndex = source - minId;
     for (int i = 0; i < maxClients; i++)
     {

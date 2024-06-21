@@ -49,7 +49,7 @@ public:
     ~GwTcpClient();
     void begin(int sourceId,String address, uint16_t port,bool allowRead);
     virtual void loop(bool handleRead=true,bool handleWrite=true);
-    virtual size_t sendToClients(const char *buf,int sourceId, bool partialWrite=false);
+    virtual size_t sendToClients(const char *buf, size_t len ,int sourceId, bool partialWrite=false);
     virtual void readMessages(GwMessageFetcher *writer);
     bool isConnected();
     String getError(){return error;}

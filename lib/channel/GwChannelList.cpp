@@ -65,7 +65,7 @@ public:
             while (handled < wp)
             {
                 if ( !writer->flush(flushTimeout)) break;
-                size_t rt = writer->sendToClients(logBuffer + handled, -1, true);
+                size_t rt = writer->sendToClients(logBuffer + handled, strlen(logBuffer + handled), -1, true);
                 handled += rt;
             }
             if (handled < wp){
