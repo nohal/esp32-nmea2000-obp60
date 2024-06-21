@@ -10,6 +10,14 @@
 
 class GwChannelMessageReceiver;
 class tActisenseReader;
+
+typedef enum {
+        RAW_ASCII,
+        RAW,
+        N2K_ASCII,
+        N2K,
+        NGT1
+    } N2KRawFormat;
 class GwChannel{
     bool enabled=false;
     bool NMEAout=false;
@@ -18,6 +26,7 @@ class GwChannel{
     GwNmeaFilter* writeFilter=NULL;
     bool seaSmartOut=false;
     bool N2KRawOut=false;
+    N2KRawFormat n2kRawFormat=N2KRawFormat::RAW_ASCII;
     bool toN2k=false;
     bool readActisense=false;
     bool writeActisense=false;
@@ -46,6 +55,7 @@ class GwChannel{
         String writeFilter,
         bool seaSmartOut,
         bool N2KRawOut,
+        N2KRawFormat n2kRawFormat,
         bool toN2k,
         bool readActisense=false,
         bool writeActisense=false
@@ -62,6 +72,7 @@ class GwChannel{
     bool canReceive(const char *buffer);
     bool sendSeaSmart(){ return seaSmartOut;}
     bool sendN2KRaw(){ return N2KRawOut;}
+    N2KRawFormat sendN2KRawFormat() {return n2kRawFormat;}
     bool sendToN2K(){return toN2k;}
     int getJsonSize();
     void toJson(GwJsonDocument &doc);

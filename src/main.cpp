@@ -168,6 +168,174 @@ GwConfigInterface *systemName=config.getConfigItem(config.systemName,true);
 
 uint8_t order = 0;
 
+void sendN2kAsciiRaw(GwChannel *c, const tN2kMsg &n2kMsg, int sourceId,
+                     char *buf) {
+  /*
+  Messages sent from Device to PC have the following form:
+  hh:mm:ss.ddd D msgid b0 b1 b2 b3 b4 b5 b6 b7<CR><LF>
+  where:
+  • hh:mm:sss.ddd — time of message transmission or reception, ddd are
+  milliseconds; • D — direction of the message («R» — from NMEA 2000 to
+  application, «T» — from application to NMEA 2000); • msgid — 29-bit message
+  identifier in hexadecimal format (contains NMEA 2000 PGN and other fields); •
+  b0..b7 — message data bytes (from 1 to 8) in hexadecimal format; • <CR><LF> —
+  end of line symbols (carriage return and line feed, decimal 13 and 10).
+  Example:
+  17:33:21.107 R 19F51323 01 2F 30 70 00 2F 30 70
+  17:33:21.108 R 19F51323 02 00
+  17:33:21.141 R 09F80115 A0 7D E6 18 C0 05 FB D5
+  17:33:21.179 R 09FD0205 64 1E 01 C8 F1 FA FF FF
+  17:33:21.189 R 1DEFFF00 A0 0B E5 98 F1 08 02 02
+  17:33:21.190 R 1DEFFF00 A1 00 DF 83 00 00
+  17:33:21.219 R 15FD0734 FF 02 2B 75 A9 1A FF FF
+  Timestamp is UTC time if the Device has received the time from the NMEA
+  */
+  // TODO: Fast packets need length in the first frame etc. (See OpenCPN source
+  // code for details)
+  size_t len;
+  // build CanID
+  unsigned long cid = 0;
+  unsigned char pf = (unsigned char)(n2kMsg.PGN >> 8);
+  if (pf < 240) {
+    cid = ((unsigned long)(n2kMsg.Priority & 0x7)) << 26 | n2kMsg.PGN << 8 |
+          ((unsigned long)n2kMsg.Destination) << 8 |
+          (unsigned long)n2kMsg.Source;
+  } else {
+    cid = ((unsigned long)(n2kMsg.Priority & 0x7)) << 26 | n2kMsg.PGN << 8 |
+          (unsigned long)n2kMsg.Source;
+  }
+
+  unsigned long now =
+      n2kMsg.MsgTime; // Or should we put millis() into each frame?
+  int ms = now % 1000;
+  int s = (now / 1000) % 60;
+  int m = (now / (1000 * 60)) % 60;
+  int h = (now / (1000 * 60 * 60)) % 24;
+  if (n2kMsg.DataLen <= 8) { // TODO: AND NOT fastpacket?
+    len = 12 + 2 + 9 + n2kMsg.DataLen * 3;
+    sprintf(buf, "%02d:%02d:%02d.%03d %c %08lX", h, m, s, ms, 'R', cid);
+    for (int i = 0; i < n2kMsg.DataLen; i++) {
+      sprintf(buf + 12 + 2 + 9 + i * 3, " %02X", n2kMsg.Data[i]);
+    }
+    buf[len] = 0x0d;
+    len++;
+    buf[len] = 0x0a;
+    len++;
+    buf[len] = 0;
+    // logger.logDebug(GwLog::DEBUG, "N2K simple: %s, %d, %u", buf, len,
+    // n2kMsg.PGN);
+    c->sendToClients(buf, sourceId, false, true);
+  } else {
+    order += 16;
+    int frames = n2kMsg.DataLen > 6 ? (n2kMsg.DataLen - 6 - 1) / 7 + 1 + 1 : 1;
+    int cur = 0;
+    unsigned char temp[8];
+    for (int i = 0; i < frames; i++) {
+      len = 12 + 2 + 9 + 8 * 3;
+      temp[0] = i | order; // frame counter
+      if (i == 0) {
+        temp[1] = n2kMsg.DataLen; // total bytes in fast packet
+        // send the first 6 bytes
+        for (int j = 2; j < 8; j++) {
+          temp[j] = n2kMsg.Data[cur];
+          cur++;
+        }
+      } else {
+        int j = 1;
+        // send the next 7 data bytes
+        for (; j < 8 && cur < n2kMsg.DataLen; j++) {
+          temp[j] = n2kMsg.Data[cur];
+          cur++;
+        }
+        for (; j < 8; j++) {
+          // temp[j] = 0xff; // In some examples the last frame is padded with
+          // 0xFF, but it is trimmed anyway and does not conform with the spec
+          len -= 3;
+        }
+      }
+
+      sprintf(buf, "%02d:%02d:%02d.%03d %c %08lX", h, m, s, ms, 'R', cid);
+
+      for (int j = 0; j < 8; j++) {
+        sprintf(buf + 12 + 2 + 9 + j * 3, " %02X", temp[j]);
+      }
+      buf[len] = 0x0d;
+      len++;
+      buf[len] = 0x0a;
+      len++;
+      buf[len] = 0;
+      // logger.logDebug(GwLog::DEBUG, "N2K complex: %s, %d, %u", buf, len,
+      // n2kMsg.PGN);
+      c->sendToClients(buf, sourceId, false, true);
+    }
+  }
+}
+
+void sendN2kAscii(GwChannel *c, const tN2kMsg &n2kMsg, int sourceId, char *buf) {
+/*
+May be multiple in one packet
+A000549.804 04FF3 1F805 F0504D605219070056F036E3E9DE0480229AFFED685DF56DFBD1FDFFFFFFFF03FC00FFFFFFFF3FF2FFFF00FFFFFFFF\r\n
+A000549.825 04FF2 1F801 0774EB14829052D2\r\n
+
+A000549.747 04FF6 1FA03 F0FBFFFFFFFFFFFF\r\n
+*/
+  unsigned long now = n2kMsg.MsgTime;
+  int ms = now % 1000;
+  int s = (now / 1000) % 60;
+  int m = (now / (1000 * 60)) % 60;
+  int h = (now / (1000 * 60 * 60)) % 24;
+  sprintf(buf, "A%02d%02d%02d.%03d %02X%02X%1X %05lX ", h, m, s, ms, n2kMsg.Source, n2kMsg.Destination, n2kMsg.Priority, n2kMsg.PGN);
+  size_t len = 24;
+  for (int i = 0; i < n2kMsg.DataLen; i++) {
+    sprintf(buf + 24 + i * 2, "%02X", n2kMsg.Data[i]);
+    len += 2;
+  }
+  buf[len] = 0x0d;
+  len++;
+  buf[len] = 0x0a;
+  len++;
+  buf[len] = 0;
+  // logger.logDebug(GwLog::DEBUG, "N2K complex: %s, %d, %u", buf, len,
+  // n2kMsg.PGN);
+  c->sendToClients(buf, sourceId, false, true);
+}
+
+void sendN2kRaw(GwChannel *c, const tN2kMsg &n2kMsg, int sourceId, char *buf) {
+/* May be multiple frames in one packet
+1002 950e452e 0404fa19 e0 7bcdfd0a05ad1ed0 1003
+1002 950e4a2e 0404fa19 e1 c5229cffbaffffaf 1003
+1002 950e4a2e 0404fa19 e2 fff00b74058a5497 1003
+1002 950e4a2e 0404fa19 e3 9cff00000000f05c 1003
+
+1002 950e7b2e 0405f80d e2 de0480229affedba 1003
+
+1002 950e872e 0405f80d e3 685df56dfbd1fdc7 1003
+1002 950e872e 0405f80d e4 ffffffff03fc00bb 1003
+
+1002 950ef135 0404fa19 22 fff00b74058a54a9 1003
+1002 950ef435 0404fa19 23 9cff00000000f06b 1003
+1002 950ef435 0404fa19 24 0ddc26dc269cff49 1003
+*/
+//TODO - needs to implement sendToClients for binary data
+}
+
+void sendN2k(GwChannel *c, const tN2kMsg &n2kMsg, int sourceId, char *buf) {
+  /*
+  1002d01500ff0401f8090 0871a010007 74eb14829052d2c41003
+  1002d01500ff041010f00d00511c0100aaf0504de01b6b07f91003
+  1002d01500ff0401f8090 0cc36010007 74eb14829052d2631003
+  1002d08800ff0404fa19c1e3330100c8fd0a05ff1d22249cffbafffffff00bc50438559cff00000000f00d7f257f259cff00000000f00fa13ab7899cffeb71b4e1f012ad1e2ada9cff00000000f014970b2d359cffb0fffffff0170b11e5be9cffffffff7ff018f40c156d9cff00000000f01db92065999cff00000000f01e7405ff1d9cff5f010000f0f11003
+  */
+  //TODO - needs to implement sendToClients for binary data
+}
+
+void sendN2kNGT1(GwChannel *c, const tN2kMsg &n2kMsg, int sourceId, char *buf) {
+  /*
+  100293860604fa01ff04155a01007b5ffd0a05501dd0249cffbafffffff00b170438559cff00000000f00dd024d0249cff00000000f00ffe3b5a889cffeb71b4e1f0125c1f2ada9cff00000000f014e80adc359cffb0fffffff017b91142c09cffffffff7ff018a20d666c9cff00000000f01d0b2008989cff00000000f01ec504501d9cff5f010000f0571003
+  */
+  //TODO - needs to implement sendToClients for binary data
+}
+
 void handleN2kMessage(const tN2kMsg &n2kMsg,int sourceId, bool isConverted=false)
 {
   logger.logDebug(GwLog::DEBUG + 1, "N2K: pgn %d, dir %d", 
@@ -195,100 +363,27 @@ void handleN2kMessage(const tN2kMsg &n2kMsg,int sourceId, bool isConverted=false
         c->sendToClients(buf,sourceId,true);
       }
     }
-    /*
-Messages sent from Device to PC have the following form:
-hh:mm:ss.ddd D msgid b0 b1 b2 b3 b4 b5 b6 b7<CR><LF>
-where:
-• hh:mm:sss.ddd — time of message transmission or reception, ddd are milliseconds;
-• D — direction of the message («R» — from NMEA 2000 to application, «T» — from application
-to NMEA 2000);
-• msgid — 29-bit message identifier in hexadecimal format (contains NMEA 2000 PGN and other
-fields);
-• b0..b7 — message data bytes (from 1 to 8) in hexadecimal format;
-• <CR><LF> — end of line symbols (carriage return and line feed, decimal 13 and 10).
-Example:
-17:33:21.107 R 19F51323 01 2F 30 70 00 2F 30 70
-17:33:21.108 R 19F51323 02 00
-17:33:21.141 R 09F80115 A0 7D E6 18 C0 05 FB D5
-17:33:21.179 R 09FD0205 64 1E 01 C8 F1 FA FF FF
-17:33:21.189 R 1DEFFF00 A0 0B E5 98 F1 08 02 02
-17:33:21.190 R 1DEFFF00 A1 00 DF 83 00 00
-17:33:21.219 R 15FD0734 FF 02 2B 75 A9 1A FF FF
-Timestamp is UTC time if the Device has received the time from the NMEA
-    */
+   
     if (c->sendN2KRaw()) {
-      //TODO: Fast packets need length in the first frame etc. (See OpenCPN source code for details)
-      size_t len;
-      // build CanID
-      unsigned long cid = 0;
-      unsigned char pf = (unsigned char) (n2kMsg.PGN >> 8);
-      if (pf < 240){
-        cid = ((unsigned long)(n2kMsg.Priority & 0x7))<<26 | n2kMsg.PGN<<8 | ((unsigned long)n2kMsg.Destination)<<8 | (unsigned long)n2kMsg.Source;
-      }
-      else {
-        cid = ((unsigned long)(n2kMsg.Priority & 0x7))<<26 | n2kMsg.PGN<<8 | (unsigned long)n2kMsg.Source;
-      }
-
-      unsigned long now = n2kMsg.MsgTime; //Or should we put millis() into each frame?
-      int ms = now % 1000;
-      int s = (now / 1000) % 60;
-      int m = (now / (1000*60)) % 60;
-      int h = (now / (1000*60*60)) % 24;
-      if (n2kMsg.DataLen <= 8) { // TODO: AND NOT fastpacket?
-        len = 12 + 2 + 9 + n2kMsg.DataLen * 3;
-        char buf[100];
-        sprintf(buf, "%02d:%02d:%02d.%03d %c %08lX", h, m, s, ms, 'R', cid);
-        for (int i=0; i<n2kMsg.DataLen; i++) {
-          sprintf(buf+12+2+9+i*3, " %02X", n2kMsg.Data[i]);
-        }
-        buf[len]=0x0d;
-        len++;
-        buf[len]=0x0a;
-        len++;
-        buf[len]=0;
-        logger.logDebug(GwLog::DEBUG, "N2K simple: %s, %d, %u", buf, len, n2kMsg.PGN);
-        c->sendToClients(buf,sourceId,false,true);
-      } else {
-        int frames = n2kMsg.DataLen > 6 ? (n2kMsg.DataLen - 6 - 1) / 7 + 1 + 1 : 1;
-        int cur = 0;
-        unsigned char temp[8]; 
-        for (int i=0; i<frames; i++) {
-          len = 12 + 2 + 9 + 8 * 3;
-          temp[0] = i | order;          //frame counter
-          if (i == 0) {
-            temp[1] = n2kMsg.DataLen;  // total bytes in fast packet
-            // send the first 6 bytes
-            for (int j = 2; j < 8; j++) {
-              temp[j] = n2kMsg.Data[cur];
-              cur++;
-            }
-          } else {
-            int j = 1;
-            // send the next 7 data bytes
-            for (; j < 8 && cur < n2kMsg.DataLen; j++) {
-              temp[j] = n2kMsg.Data[cur];
-              cur++;
-            }
-            for (; j < 8; j++) {
-              //temp[j] = 0xff; // In some examples the last frame is padded with 0xFF, but it is trimmed anyway and does not conform with the spec
-              len -= 3;
-            }
-          }
-          
-          sprintf(buf, "%02d:%02d:%02d.%03d %c %08lX", h, m, s, ms, 'R', cid);
-
-          for (int j=0; j<8; j++) {
-            sprintf(buf+12+2+9+j*3, " %02X", temp[j]);
-          }
-          buf[len]=0x0d;
-          len++;
-          buf[len]=0x0a;
-          len++;
-          buf[len]=0;
-          //logger.logDebug(GwLog::DEBUG, "N2K complex: %s, %d, %u", buf, len, n2kMsg.PGN);
-          c->sendToClients(buf,sourceId,false,true);
-        }
-        order += 16; // Next message with different indicator (Probably not needed, but...)
+      switch(c->sendN2KRawFormat()) {
+      case N2KRawFormat::RAW_ASCII:
+        sendN2kAsciiRaw(c, n2kMsg, sourceId, buf);
+        break;
+      case N2KRawFormat::RAW:
+        sendN2kRaw(c, n2kMsg, sourceId, buf);
+        break;
+      case N2KRawFormat::N2K_ASCII:
+        sendN2kAscii(c, n2kMsg, sourceId, buf);
+        break;
+      case N2KRawFormat::N2K:
+        sendN2k(c, n2kMsg, sourceId, buf);
+        break;
+      case N2KRawFormat::NGT1:
+        sendN2kNGT1(c, n2kMsg, sourceId, buf);
+        break;
+      default:
+        logger.logDebug(GwLog::DEBUG + 1, "Unsupported N2KRawFormat %d", c->sendN2KRawFormat());
+        break;
       }
     }
   });

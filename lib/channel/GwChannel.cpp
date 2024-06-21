@@ -72,6 +72,7 @@ void GwChannel::begin(
     String writeFilter,
     bool seaSmartOut,
     bool N2KRawOut,
+    N2KRawFormat n2kRawFormat,
     bool toN2k,
     bool readActisense,
     bool writeActisense)
@@ -87,6 +88,7 @@ void GwChannel::begin(
         new GwNmeaFilter(writeFilter);
     this->seaSmartOut=seaSmartOut;
     this->N2KRawOut=N2KRawOut;
+    this->n2kRawFormat=n2kRawFormat;
     this->toN2k=toN2k;
     this->readActisense=readActisense;
     this->writeActisense=writeActisense;

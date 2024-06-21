@@ -657,6 +657,21 @@
         "category": "TCP server"
     },
     {
+        "name":"n2kFormat",
+        "label": "NMEA2000 format",
+        "type":"list",
+        "default":"0",
+        "list": [
+            {"l":"RAW ASCII","v":"0"},
+            {"l":"RAW","v":"1"},
+            {"l":"N2K ASCII","v":"2"},
+            {"l":"N2K","v":"3"},
+            {"l":"NGT-1","v":"4"}
+        ],
+        "description": "format of the NMEA2000 data to be sent",
+        "category":"TCP server"
+    },
+    {
         "name": "tclEnabled",
         "label": "enable",
         "type": "boolean",
@@ -736,6 +751,21 @@
         "default": "false",
         "description": "send NMEA2000 in ActiSense/YD RAW Ascii format to remote TCP server",
         "category": "TCP client"
+    },
+    {
+        "name":"tclN2KFormat",
+        "label": "NMEA2000 format",
+        "type":"list",
+        "default":"0",
+        "list": [
+            {"l":"RAW ASCII","v":"0"},
+            {"l":"RAW","v":"1"},
+            {"l":"N2K ASCII","v":"2"},
+            {"l":"N2K","v":"3"},
+            {"l":"NGT-1","v":"4"}
+        ],
+        "description": "format of the NMEA2000 data to be sent",
+        "category":"TCP client"
     },
     {
         "name": "wifiClient",

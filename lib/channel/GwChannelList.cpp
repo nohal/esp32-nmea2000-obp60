@@ -262,6 +262,8 @@ void GwChannelList::addSerial(GwChannelList::SerialWrapperBase *serialStream,con
         config->getString(param->readF),
         config->getString(param->writeF),
         false,
+        false,
+        N2KRawFormat::RAW_ASCII,
         config->getBool(param->toN2K),
         false,
         false);
@@ -315,6 +317,8 @@ void GwChannelList::begin(bool fallbackSerial){
             config->getString(config->usbReadFilter),
             config->getString(config->usbWriteFilter),
             false,
+            false,
+            N2KRawFormat::RAW_ASCII,
             config->getBool(config->usbToN2k),
             config->getBool(config->usbActisense),
             config->getBool(config->usbActSend)
@@ -335,6 +339,7 @@ void GwChannelList::begin(bool fallbackSerial){
         config->getString(config->tcpWriteFilter),
         config->getBool(config->sendSeasmart),
         config->getBool(config->sendN2KRaw),
+        static_cast<N2KRawFormat>(config->getInt(config->n2kFormat)),
         config->getBool(config->tcpToN2k),
         false,
         false
@@ -395,6 +400,7 @@ void GwChannelList::begin(bool fallbackSerial){
         config->getString(config->tclReadFilter),
         config->getBool(config->tclSeasmart),
         config->getBool(config->tclN2KRaw),
+        static_cast<N2KRawFormat>(config->getInt(config->tclN2KFormat)),
         config->getBool(config->tclToN2k),
         false,
         false
