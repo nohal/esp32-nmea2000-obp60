@@ -225,7 +225,6 @@ void sendN2kAsciiRaw(GwChannel *c, const tN2kMsg &n2kMsg, int sourceId,
     // n2kMsg.PGN);
     c->sendToClients(buf, len, sourceId, false, true);
   } else {
-    order += 16;
     int frames = n2kMsg.DataLen > 6 ? (n2kMsg.DataLen - 6 - 1) / 7 + 1 + 1 : 1;
     int cur = 0;
     unsigned char temp[8];
@@ -266,6 +265,7 @@ void sendN2kAsciiRaw(GwChannel *c, const tN2kMsg &n2kMsg, int sourceId,
       // n2kMsg.PGN);
       c->sendToClients(buf, len, sourceId, false, true);
     }
+    order += 16;
   }
 }
 
