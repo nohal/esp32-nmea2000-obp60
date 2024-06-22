@@ -326,18 +326,73 @@ void sendN2k(GwChannel *c, const tN2kMsg &n2kMsg, int sourceId, char *buf) {
   //TODO
 }
 
+void addByteEscaped(char *buf, size_t &len, unsigned char b, unsigned char *crc = nullptr) {
+  if (b == 0x10) {
+    buf[len] = 0x10;
+    len++;
+    buf[len] = 0x10;
+    len++;
+  } else {
+    buf[len] = b;
+    len++;
+  }
+  if (crc) {
+    *crc += b; //CRC includes only real data bytes, not the duplicate in escaped 0x10
+  }
+}
+
 void sendN2kNGT1(GwChannel *c, const tN2kMsg &n2kMsg, int sourceId, char *buf) {
   /*
   100293 86 06 04fa01 ff 04 155a0100 7b 5ffd0a05501dd0249cffbafffffff00b170438559cff00000000f00dd024d0249cff00000000f00ffe3b5a889cffeb71b4e1f0125c1f2ada9cff00000000f014e80adc359cffb0fffffff017b91142c09cffffffff7ff018a20d666c9cff00000000f01d0b2008989cff00000000f01ec504501d9cff5f010000f0 57 1003
+  100293 13 03 1010f001 ff 04 01330100 08 2df0504dd0cf8507 311003
+  100293 13 06 03fa01 ff 04 05330100 08 2dfbffffffffffff f01003
+  uint8_t a = 2d + fb + ff + ff + ff + ff + ff + ff;
      * <10><02><93><length (1)><priority (1)><PGN (3)><destination (1)><source (1)><time (4)><len (1)><data (len)><CRC (1)><10><03>
      * or
      * <10><02><94><length (1)><priority (1)><PGN (3)><destination (1)><len (1)><data (len)><CRC (1)><10><03>
      #define MsgTypeN2kData 0x93
      #define MsgTypeN2kRequest 0x94
      if MsgTypeN2kRequest, source = DefaultSource = 65
-
   */
-  //TODO
+  size_t len = 0;
+  uint8_t crc = 0;
+  buf[len] = 0x10;
+  len++;
+  buf[len] = 0x02;
+  len++;
+  uint8_t total_length = 0;
+  if (n2kMsg.Source != 65) {
+    addByteEscaped(buf, len, 0x93, &crc);
+    total_length = 11 + n2kMsg.DataLen;
+  } else {
+    addByteEscaped(buf, len, 0x94, &crc);
+    total_length = 6 + n2kMsg.DataLen;
+  }
+  addByteEscaped(buf, len, total_length, &crc);
+  addByteEscaped(buf, len, n2kMsg.Priority, &crc);
+  addByteEscaped(buf, len, n2kMsg.PGN & 0xff, &crc);
+  addByteEscaped(buf, len, (n2kMsg.PGN >> 8) & 0xff, &crc);
+  addByteEscaped(buf, len, (n2kMsg.PGN >> 16) & 0xff, &crc);
+  addByteEscaped(buf, len, n2kMsg.Destination, &crc);
+  if (n2kMsg.Source != 65) {
+    addByteEscaped(buf, len, n2kMsg.Source, &crc);
+    //Time
+    addByteEscaped(buf, len, n2kMsg.MsgTime & 0xff, &crc);
+    addByteEscaped(buf, len, (n2kMsg.MsgTime >> 8) & 0xff, &crc);
+    addByteEscaped(buf, len, (n2kMsg.MsgTime >> 16) & 0xff, &crc);
+    addByteEscaped(buf, len, (n2kMsg.MsgTime >> 24) & 0xff, &crc);
+  }
+  addByteEscaped(buf, len, n2kMsg.DataLen, &crc);
+  for (int i = 0; i < n2kMsg.DataLen; i++) {
+    addByteEscaped(buf, len, n2kMsg.Data[i], &crc);
+  }
+  //CRC
+  addByteEscaped(buf, len, crc == 0 ? 0 : 256 - crc);
+  buf[len] = 0x10;
+  len++;
+  buf[len] = 0x03;
+  len++;
+  c->sendToClients(buf, len, sourceId, false, true);
 }
 
 void handleN2kMessage(const tN2kMsg &n2kMsg,int sourceId, bool isConverted=false)
